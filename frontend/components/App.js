@@ -1,23 +1,23 @@
-import React from 'react';
-import { Route, Routes, NavLink } from 'react-router-dom';
-import Home from './Home';
-import Form from './Form';
+import React from 'react'
+import Home from './Home'
+import Form from './Form'
+import { NavLink, Route,Routes } from 'react-router-dom'
 
 function App() {
   return (
     <div id="app">
       <nav>
-        <NavLink to="/">Home</NavLink>
-        <NavLink to="/order">Order</NavLink>
+        {/* NavLinks here */}
+        <NavLink to="/"> Home </NavLink>
+        <NavLink to="/order"> Order </NavLink>
       </nav>
+      {/* Route and Routes here */}
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/order" element={<Form />} />
+        <Route path='/' element= {<Home />}/>
+        <Route path='/order' element= {<Form />}/>
       </Routes>
     </div>
-  );
+  )
 }
 
-export default App;
-
-//good
+export default App

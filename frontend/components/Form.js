@@ -1,194 +1,118 @@
-import React, { useEffect, useState } from 'react';
-import * as Yup from 'yup';
+import React, { useEffect, useState } from 'react'
+import * as yup from "yup"
+import axios  from 'axios'
 
-// Define validation errors
+// 👇 Here are the validation errors you will use with Yup.s
 const validationErrors = {
-  fullNameTooShort: 'Full name must be at least 3 characters',
-  fullNameTooLong: 'Full name must be at most 20 characters',
-  sizeIncorrect: 'Size must be S, M, or L',
-};
+  fullNameTooShort: 'full name must be at least 3 characters',
+  fullNameTooLong: 'full name must be at most 20 characters',
+  sizeIncorrect: 'size must be S or M or L'
+}
 
-// Define toppings
+// 👇 Here you will create your schema.
+const formSchema = yup.object().shape({
+  fullName: yup.string().required("Full Name is Required").min(3, validationErrors.fullNameTooShort).max(20, validationErrors.fullNameTooLong).trim(),
+  size: yup.string().required("size is required").oneOf(["S","M","L"], validationErrors.sizeIncorrect)
+})
+// 👇 This array could help you construct your checkboxes using .map in the JSX..
 const toppings = [
   { topping_id: '1', text: 'Pepperoni' },
   { topping_id: '2', text: 'Green Peppers' },
   { topping_id: '3', text: 'Pineapple' },
   { topping_id: '4', text: 'Mushrooms' },
   { topping_id: '5', text: 'Ham' },
-];
-
-// Define Yup validation schema
-const validationSchema = Yup.object().shape({
-  fullName: Yup.string()
-    .min(3, validationErrors.fullNameTooShort)
-    .max(20, validationErrors.fullNameTooLong)
-    .required('Full name is required'),
-  size: Yup.string()
-    .oneOf(['S', 'M', 'L'], validationErrors.sizeIncorrect)
-    .required('Size is required'),
-  toppings: Yup.array(), // Optional
-});
-
-// Map sizes to full names
-const sizeMap = {
-  S: 'small',
-  M: 'medium',
-  L: 'large',
-};
+]
 
 export default function Form() {
-  const [formData, setFormData] = useState({
-    fullName: '',
-    size: '',
-    toppings: [],
-  });
+  const [formVals,setFormVals] = useState({fullName: "", size:"", toppings: []})
+  const [errors, setErrors] = useState({fullName: "", size: ""})
+  const [success, setSuccess] = useState("")
+  const [failure, setFailure] = useState("")
+  const [submit, setSubmit] = useState(false)
 
-  const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
-  const [isFormValid, setIsFormValid] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-
-  // Function to validate form data
-  const validateForm = async () => {
-    try {
-      await validationSchema.validate(formData, { abortEarly: false });
-      setErrors({});
-      setIsFormValid(true);
-    } catch (err) {
-      const newErrors = {};
-      err.inner.forEach((error) => {
-        newErrors[error.path] = error.message;
-      });
-      setErrors(newErrors);
-      setIsFormValid(false);
-    }
-  };
-
-  // Validate form data on change or blur
   useEffect(() => {
-    validateForm();
-  }, [formData]);
+    formSchema.isValid(formVals).then(valid => setSubmit(valid))
+  }, [formVals])
 
-  // Handle input change
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const onSubmit = (e) => {
+    e.preventDefault()
+    axios.post("http://localhost:9009/api/order", formVals)
+      .then(res => {
+        setSuccess(res.data.message)
+        setFailure("")
+        setFormVals({fullName: "", size: "", toppings: []})
+      })
+      .catch(error => {
+        setSuccess("")
+        setFailure(error.response.data.message)
+      })
+  }
 
-    if (type === 'checkbox') {
-      setFormData((prevData) => ({
-        ...prevData,
-        toppings: checked
-          ? [...prevData.toppings, value]
-          : prevData.toppings.filter((topping) => topping !== value),
-      }));
+  const onChange = (e) => {
+    let {name, type, checked, value, id} = e.target
+    if (type === "checkbox"){
+      if (checked) {
+        formVals.toppings.includes(id) ? value = [...formVals.toppings] : value = [...formVals.toppings, id]
+        setFormVals({...formVals, toppings: value})
+      } else {
+        let index = formVals.toppings.indexOf(name)
+        formVals.toppings.splice(index,1)
+        value = [...formVals.toppings]
+        setFormVals({...formVals, toppings: value})
+      }  
     } else {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value,
-      }));
+      setFormVals({...formVals, [name]: value})
+      yup.reach(formSchema, name)
+        .validate(value)
+        .then(() => setErrors({...errors, [name]: ""}))
+        .catch(error => setErrors({...errors, [name]: error.errors[0]}))
     }
-  };
-
-  // Handle input blur
-  const handleBlur = (e) => {
-    const { name } = e.target;
-    setTouched((prevTouched) => ({ ...prevTouched, [name]: true }));
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await validateForm(); // Validate the form
-
-      if (isFormValid) {
-        const toppingCount = formData.toppings.length;
-        const toppingText =
-          toppingCount === 0 ? 'no toppings' : `${toppingCount} ${toppingCount === 1 ? 'topping' : 'toppings'}`;
-        const fullSizeName = sizeMap[formData.size] || '';
-
-        setSuccessMessage(
-          `Thank you for your order, ${formData.fullName}! Your ${fullSizeName} pizza with ${toppingText} is on the way.`
-        );
-
-        console.log('Submitted data:', formData); // Debug submitted data
-
-        // Reset form
-        setFormData({
-          fullName: '',
-          size: '',
-          toppings: [],
-        });
-        setTouched({});
-        setIsFormValid(false);
-      }
-    } catch (err) {
-      const newErrors = {};
-      err.inner.forEach((error) => {
-        newErrors[error.path] = error.message;
-      });
-      setErrors(newErrors);
-      setIsFormValid(false);
-    }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={onSubmit}>
       <h2>Order Your Pizza</h2>
-
-      {successMessage && <div className="success">{successMessage}</div>}
+      {success && <div className='success'>{success}</div>}
+      {failure && <div className='failure'>{failure}</div>}
 
       <div className="input-group">
-        <label htmlFor="fullName">Full Name</label><br />
-        <input
-          placeholder="Type full name"
-          id="fullName"
-          name="fullName"
-          type="text"
-          value={formData.fullName}
-          onChange={handleChange}
-          onBlur={handleBlur}
-        />
-        {touched.fullName && errors.fullName && (
-          <div className="error">{errors.fullName}</div>
-        )}
+        <div>
+          <label htmlFor="fullName">Full Name</label><br />
+          <input onChange={onChange} placeholder="Type full name" id="fullName" name='fullName' value={formVals.fullName} type="text" />
+        </div>
+        {errors.fullName && <div className='error'>{errors.fullName}</div>}
       </div>
 
       <div className="input-group">
-        <label htmlFor="size">Size</label><br />
-        <select
-          id="size"
-          name="size"
-          value={formData.size}
-          onChange={handleChange}
-          onBlur={handleBlur}
-        >
-          <option value="">----Choose Size----</option>
-          <option value="S">Small</option>
-          <option value="M">Medium</option>
-          <option value="L">Large</option>
-        </select>
-        {touched.size && errors.size && (
-          <div className="error">{errors.size}</div>
-        )}
+        <div>
+          <label htmlFor="size">Size</label><br />
+          <select onChange={onChange} name='size' value={formVals.size} id="size">
+            <option value="">----Choose Size----</option>
+            {/* Fill out the missing options */}
+            <option value="S"> Small </option>
+            <option value="M"> Medium </option>
+            <option value="L"> Large</option>
+          </select>
+        </div>
+        {errors.size && <div className='error'>{errors.size}</div>}
       </div>
 
       <div className="input-group">
-        {toppings.map((topping) => (
-          <label key={topping.topping_id}>
-            <input
-              type="checkbox"
-              name="toppings"
-              value={topping.text}
-              onChange={handleChange}
-              checked={formData.toppings.includes(topping.text)}
-            />
-            {topping.text}
-            <br />
-          </label>
-        ))}
+        {/* 👇 Maybe you could generate the checkboxes dynamically */}
+        {toppings.map(topping => <label key={topping.topping_id}>
+          <input
+            id={topping.topping_id}
+            checked={formVals.toppings.includes(topping.topping_id)}
+            onChange={onChange}
+            name="toppings"
+            type="checkbox"
+          />
+          {topping.text}<br />
+        </label>)}
+        
       </div>
-
-      <input type="submit" value="Submit" disabled={!isFormValid} />
+      {/* 👇 Make sure the submit stays disabled until the form validates! */}
+      <input type="submit" disabled = {!submit} />
     </form>
-  );
+  )
 }
