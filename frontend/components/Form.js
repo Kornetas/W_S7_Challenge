@@ -99,24 +99,28 @@ export default function Form() {
     e.preventDefault();
     try {
       await validateForm(); // Validate the form
-      const toppingCount = formData.toppings.length;
-      const toppingText = toppingCount === 0 ? 'no toppings' : `${toppingCount} ${toppingCount === 1 ? 'topping' : 'toppings'}`;
-      const fullSizeName = sizeMap[formData.size] || '';
 
-      setSuccessMessage(
-        `Thank you for your order, ${formData.fullName}! Your ${fullSizeName} pizza with ${toppingText} is on the way.`
-      );
+      if (isFormValid) {
+        const toppingCount = formData.toppings.length;
+        const toppingText =
+          toppingCount === 0 ? 'no toppings' : `${toppingCount} ${toppingCount === 1 ? 'topping' : 'toppings'}`;
+        const fullSizeName = sizeMap[formData.size] || '';
 
-      console.log('Submitted data:', formData); // Debug submitted data
+        setSuccessMessage(
+          `Thank you for your order, ${formData.fullName}! Your ${fullSizeName} pizza with ${toppingText} is on the way.`
+        );
 
-      // Reset form
-      setFormData({
-        fullName: '',
-        size: '',
-        toppings: [],
-      });
-      setTouched({});
-      setIsFormValid(false);
+        console.log('Submitted data:', formData); // Debug submitted data
+
+        // Reset form
+        setFormData({
+          fullName: '',
+          size: '',
+          toppings: [],
+        });
+        setTouched({});
+        setIsFormValid(false);
+      }
     } catch (err) {
       const newErrors = {};
       err.inner.forEach((error) => {
